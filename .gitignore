@@ -1,0 +1,17 @@
+# Du lieu va ket qua khong dua len kho: du lieu tho tai lai bang `python chay.py --giai-doan nap`,
+# moi thu trong data/interim, data/processed va ket_qua do ma nguon sinh ra.
+data/
+ket_qua/
+
+# Moi truong ao va tep tam cua Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Tep rieng cua he dieu hanh va trinh soan thao
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

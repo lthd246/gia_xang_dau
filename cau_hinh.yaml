@@ -1,0 +1,401 @@
+# cau_hinh.yaml - moi duong dan, nguong, danh sach cot, quy tac chuan hoa va seed.
+# Moi duong dan la duong dan tuong doi, tinh tu thu muc goc cua kho (noi dat tep nay).
+# Doi mot nguong hay mot moc thoi gian: chi sua tep nay, khong mo tep .py nao.
+
+du_an:
+  nhom: "NN"                                   # so nhom, vi du "07"
+  thanh_vien: ["MSSV_1", "MSSV_2", "MSSV_3", "MSSV_4"]
+  cau_hoi: >-
+    Giai đoạn 2018 - 11/2026, trong ba cú sốc lớn (đại dịch COVID-19 năm 2020, chiến sự
+    Nga - Ukraine năm 2022, chiến sự Iran - eo biển Hormuz năm 2026), giá dầu thế giới
+    biến động mạnh gấp mấy lần lúc bình thường, và giá bán lẻ xăng E5 RON92, dầu diesel
+    ở Việt Nam tăng giảm bằng bao nhiêu phần so với mức tăng giảm của giá dầu thế giới
+    khi cùng quy về đồng/lít?
+  seed: 20262
+
+duong_dan:
+  du_lieu: data                                # chua raw/ va external/
+  tai_tam: data/interim/tai_tam                # noi tai tam truoc khi chuyen vao du_lieu
+  bang_tho: data/interim/bang_tho.csv
+  trang_thai: data/interim/trang_thai.json
+  bang_sach: data/processed/gia_xang_dau.csv
+  hinh: ket_qua/hinh
+  bang: ket_qua/bang
+  tom_tat: ket_qua/tom_tat.json
+  nhat_ky: ket_qua/nhat_ky.log
+
+tai_ve:
+  tac_nhan: "do-an-MTH10605 (hoc tap, phi thuong mai)"
+  cho_giay: 0.5
+  so_lan_thu: 4
+  het_gio_giay: 120
+
+nguon:
+  - ten: eia
+    mo_ta: "Giá giao ngay dầu thô và sản phẩm lọc dầu hằng ngày (EIA Open Data API v2)"
+    loai: json_trang
+    dinh_dang: json
+    vai_tro: gia
+    thu_muc: raw/eia
+    mau_ten_tep: "gia_giao_ngay_trang_*.json"
+    doc:
+      duong_ban_ghi: [response, data]
+      cot: {ngay: period, chuoi: series, gia_tri: value, don_vi: units}
+    tai_ve:
+      kieu: api_phan_trang
+      url: "https://api.eia.gov/v2/petroleum/pri/spt/data/"
+      tham_so:
+        frequency: daily
+        "data[0]": value
+        start: "2015-01-01"
+        "sort[0][column]": period
+        "sort[0][direction]": asc
+        "sort[1][column]": series
+        "sort[1][direction]": asc
+      tham_so_vi_tri: offset
+      kieu_vi_tri: do_doi
+      tham_so_kich_thuoc: length
+      kich_thuoc_trang: 5000
+      so_trang_toi_da: 40
+      tham_so_khoa: api_key
+      bien_moi_truong_khoa: EIA_API_KEY
+      khoa_mac_dinh: DEMO_KEY
+      ten_tep: "gia_giao_ngay_trang_{trang:03d}.json"
+
+  - ten: moit
+    mo_ta: "Thông báo điều hành giá xăng dầu của Bộ Công Thương (moit.gov.vn)"
+    loai: bai_viet
+    dinh_dang: jsonl
+    vai_tro: gia
+    thu_muc: raw/moit
+    mau_ten_tep: "bai_viet.jsonl"
+    doc:
+      truong_noi_dung: content
+      so_ky_tu_sau_cau_gia: 160              # so ky tu giu lai sau moi cau gia (noi neu muc tang giam)
+      # bai nao khong co cau nay thi khong phai thong bao dieu hanh gia
+      mau_thoi_diem: '[Áá]p dụng từ\s+(?P<ngay>\d{1,2}\s*giờ\s*\d{1,2}\D{0,10}ngày\s+\d{1,2}\s+tháng\s+\d{1,2}\s+năm\s+\d{4})'
+      mau_gia: &mau_gia                      # neo YAML: nguon bcp dung lai danh sach nay
+        # gia ban le toi da, neu gia truoc: "Xăng E5RON92: không cao hơn 20.512 đồng/lít (giảm 778 ...)"
+        - '(?P<chuoi>(?:[Xx]ăng|[Dd]ầu)(?:(?!đồng|[Kk]hông cao|, |[Xx]ăng |[Dd]ầu )[^:;\n]){0,40}?)\s*:?\s*[Kk]hông cao hơn(?:\s+mức giá)?\s+(?P<gia_tri>\d{1,3}(?:[.,]\d{3})*)\s*(?P<don_vi>đồng/(?:lít|kg))'
+        # gia ban le toi da, neu muc tang giam truoc: "xăng E5RON92 tăng 56 đồng/lít, giá bán không cao hơn 18.339 đồng/lít"
+        - '(?P<chuoi>(?:[Xx]ăng|[Dd]ầu)(?:(?!đồng|[Kk]hông cao|tăng|giảm|được|cũng|[Xx]ăng |[Dd]ầu )[^,;:\n]){0,30}?)\s+(?:cũng\s+)?(?:được\s+(?:điều chỉnh\s+)?)?(?:tăng|giảm)(?:\s+(?:nhẹ|thêm|mạnh))?\s+\d{1,3}(?:\.\d{3})*\s*đồng(?:/lít)?(?:\s+so với(?:(?!đồng)[^,;.\n]){0,40})?\s*[,;]?\s*(?:và\s+)?(?:(?:(?:có\s+)?giá(?:\s+b[aá]n)?(?:\s+lẻ|\s+ra)?(?:\s+tối đa)?|bán ra|lên mức giá)\s*(?:không cao hơn\s+|là\s+|ở mức\s+)?|không cao hơn\s+)(?P<gia_tri>\d{1,3}(?:[.,]\d{3})*)\s*(?P<don_vi>đồng/lít)'
+        # gia ban le toi da, viet bang tu dong nghia va co neu muc tang giam ngay sau:
+        # "Giá xăng E5RON92 tối đa là 20.658 đồng/lít, giảm 197 đồng/lít so với ..."
+        - '(?P<chuoi>(?:[Xx]ăng|[Dd]ầu)(?:(?!đồng|[Kk]hông cao|, |[Xx]ăng |[Dd]ầu |tối đa|cao nhất|về |cũng )[^:;\n]){0,40}?)\s*(?:về\s+|cũng còn\s+)?(?:tối đa(?:\s+là)?|cao nhất là)\s+(?P<gia_tri>\d{1,3}(?:[.,]\d{3})*)\s*(?P<don_vi>đồng/lít)(?=\s*[,(]\s*(?:tăng|giảm|giữ nguyên))'
+        # gia thanh pham the gioi binh quan ky: "81,252 USD/thùng xăng RON92 ..."
+        - '(?P<gia_tri>\d{1,4}(?:[.,]\d{1,3})?)\s*(?P<don_vi>USD/(?:thùng|tấn))\s+(?P<chuoi>(?:xăng|dầu)[^;(:\n]{0,80})'
+    tai_ve:
+      kieu: bai_viet_api
+      url_tim: "https://moit.gov.vn/api/Content/Portal/ClientSearch/search"
+      tham_so_tim:
+        site: 2005517
+        keyword: "xăng dầu"
+        type: Article
+        orderBy: "publishTime DESC"
+      tham_so_vi_tri: pageNo
+      tham_so_kich_thuoc: itemsPerPage
+      kich_thuoc_trang: 100
+      so_trang_toi_da: 60
+      duong_ban_ghi: [types, Article, items]
+      loai_bai: ["Article.News"]
+      url_bai: "https://moit.gov.vn/api/Content/Article/select"
+      tham_so_bai: {site: 2005517}
+      tham_so_ma_bai: id
+      truong_giu: [id, type, title, brief, content, publishTime, createdTime, lastUpdateTime, categories, rewriteURL]
+      mau_loc: '[Kk]hông cao hơn(?: mức giá)? \d'
+      ten_tep_tim: "tim_kiem_trang_{trang:03d}.json"
+      ten_tep_bai: "bai_viet.jsonl"
+
+  - ten: bcp
+    mo_ta: "Tin điều chỉnh giá xăng dầu trên Báo điện tử Chính phủ (baochinhphu.vn)"
+    loai: bai_viet
+    dinh_dang: jsonl
+    vai_tro: gia
+    thu_muc: raw/bcp
+    mau_ten_tep: "bai_viet.jsonl"
+    doc:
+      truong_noi_dung: content
+      so_ky_tu_sau_cau_gia: 160              # nhu nguon moit
+      truong_thoi_diem: publishTime          # ngay cua quan sat la thoi diem dang bai
+      mau_gia: *mau_gia                      # dung chung bon mau voi nguon moit
+    tai_ve:
+      kieu: bai_viet_html
+      url_goc: "https://baochinhphu.vn"
+      url_tim: "https://baochinhphu.vn/timeline/search.htm"
+      tu_khoa: ["giá xăng", "giá dầu", "xăng dầu", "xăng"]
+      tham_so_tu_khoa: keywords
+      tham_so_vi_tri: page
+      so_trang_toi_da: 60
+      so_lan_thu_trang: 8          # moi trang tim kiem tai it nhat 2 lan; tra nham trang thi tai lai
+      tu_ngay: 2017-12-01
+      mau_muc: '<div class="box-stream-item" data-id="(?P<id>\d+)">.*?<a[^>]+href="(?P<url>[^"]+)".*?title="(?P<thang>\d{1,2})/(?P<ngay>\d{1,2})/(?P<nam>\d{4}) '
+      mau_tieu_de: 'data-role="title"[^>]*>(?P<tieu_de>.*?)</(?:h1|a)>'
+      mau_tom_tat: 'data-role="sapo"[^>]*>(?P<tom_tat>.*?)</(?:h2|p)>'
+      mau_thoi_diem_dang: 'article:published_time"\s+content="(?P<thoi_diem>[^"]+)"'
+      mau_the_noi_dung: '<div[^>]*data-role="content"[^>]*>'
+      # giu bai co neu gia tran hoac muc tang giam theo lit; viec tach gia do `doc.mau_gia` quyet dinh
+      mau_loc: '(?:[Kk]hông cao hơn(?: mức giá)? \d|(?:tăng|giảm)(?: nhẹ| thêm| mạnh)? \d{1,3}(?:\.\d{3})* đồng/lít)'
+      ten_tep_tim: "tim_kiem_{tu_khoa:02d}_trang_{trang:03d}.html"
+      ten_tep_bai: "bai_viet.jsonl"
+
+  - ten: ty_gia
+    mo_ta: "Tỷ giá báo cáo USD/VND cuối quý (U.S. Treasury Fiscal Data API)"
+    loai: json_trang
+    dinh_dang: json
+    vai_tro: tra_cuu
+    thu_muc: raw/ty_gia
+    mau_ten_tep: "ty_gia_trang_*.json"
+    gia_tri_co_dinh: {don_vi: "VND/USD"}
+    doc:
+      duong_ban_ghi: [data]
+      cot: {ngay: effective_date, chuoi: country_currency_desc, gia_tri: exchange_rate}
+    tai_ve:
+      kieu: api_phan_trang
+      url: "https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v1/accounting/od/rates_of_exchange"
+      tham_so:
+        filter: "country_currency_desc:eq:Vietnam-Dong"
+        sort: "record_date"
+      tham_so_vi_tri: "page[number]"
+      kieu_vi_tri: so_trang
+      tham_so_kich_thuoc: "page[size]"
+      kich_thuoc_trang: 50
+      so_trang_toi_da: 20
+      ten_tep: "ty_gia_trang_{trang:03d}.json"
+
+  - ten: gpr
+    mo_ta: "Chỉ số rủi ro địa chính trị GPR hằng ngày (Caldara & Iacoviello)"
+    loai: excel
+    dinh_dang: xls
+    vai_tro: tra_cuu
+    thu_muc: external/gpr
+    mau_ten_tep: "data_gpr_daily_recent.xls"
+    gia_tri_co_dinh: {chuoi: GPRD, don_vi: "chi so"}
+    doc:
+      trang_tinh: 0
+      dong_tieu_de: 0
+      cot: {ngay: DAY, gia_tri: GPRD}
+    tai_ve:
+      kieu: tep
+      url: "https://www.matteoiacoviello.com/gpr_files/data_gpr_daily_recent.xls"
+      ten_tep: "data_gpr_daily_recent.xls"
+
+  - ten: oxcgrt
+    mo_ta: "Chỉ số nghiêm ngặt chống dịch COVID-19 theo nước, theo ngày (OxCGRT, Đại học Oxford)"
+    loai: csv_khoi
+    dinh_dang: csv
+    vai_tro: tra_cuu
+    thu_muc: external/oxcgrt
+    mau_ten_tep: "OxCGRT_compact_national_v1.csv"
+    gia_tri_co_dinh: {don_vi: "chi so 0-100"}
+    doc:
+      kich_thuoc_khoi: 50000
+      loc: {Jurisdiction: NAT_TOTAL}
+      cot: {ngay: Date, chuoi: CountryCode, gia_tri: StringencyIndex_Average}
+    tai_ve:
+      kieu: tep
+      url: "https://raw.githubusercontent.com/OxCGRT/covid-policy-dataset/main/data/OxCGRT_compact_national_v1.csv"
+      ten_tep: "OxCGRT_compact_national_v1.csv"
+
+luoc_do:
+  # cot cua bang sach (data/processed), dung thu tu nay
+  bang_sach:
+    - ngay
+    - nam
+    - thang
+    - ma_chuoi
+    - ten_chuoi
+    - thi_truong
+    - nhom_hang
+    - nguon
+    - suy_ra
+    - gia_goc
+    - don_vi
+    - ty_gia
+    - gia_usd_thung
+    - gia_vnd_lit
+    - thay_doi_pct
+    - gpr
+    - phong_toa_tg
+    - phong_toa_vn
+    - su_kien
+    - loai_boi_canh
+
+lam_sach:
+  ky_hieu_thieu: ["", "na", "n/a", "nan", "null", "none", ".", "-"]
+  dang_ngay_chuan: iso                   # o khong o dang nay duoc dem la sai kieu
+  mau_ngay:                              # thu theo thu tu tu tren xuong
+    iso: '^(?P<nam>\d{4})-(?P<thang>\d{2})-(?P<ngay>\d{2})$'
+    iso_kem_gio: '^(?P<nam>\d{4})-(?P<thang>\d{2})-(?P<ngay>\d{2})[T ]\d{2}:\d{2}'
+    viet_lien: '^(?P<nam>\d{4})(?P<thang>\d{2})(?P<ngay>\d{2})$'
+    chu_viet: 'ngày\s+(?P<ngay>\d{1,2})\s+tháng\s+(?P<thang>\d{1,2})\s+năm\s+(?P<nam>\d{4})'
+  kieu_so: {eia: chuan, moit: viet, bcp: viet, ty_gia: chuan, gpr: chuan, oxcgrt: chuan}
+  uu_tien_nguon: [moit, bcp, eia]        # khi trung khoa, giu dong cua nguon dung truoc
+  lit_moi_thung: 158.987294928
+  sai_so_lam_tron: 10              # dong/lit: hai gia lech khong qua muc nay coi la mot (bao hay lam tron)
+  mau_thay_doi:                    # xet lan luot, mau khop dau tien duoc dung
+    # muc tang/giam neu ngay sau gia: "... 20.512 đồng/lít (giảm 778 đồng/lít so với ...)"; (?![.,]?\d|[.,]$) buoc doc tron con so, cau bi cat giua so thi khong khop
+    - '^(?:(?!đồng/lít).)*đồng/lít[\s,(]*(?P<chieu>tăng|giảm|giữ nguyên|giữ ổn định|ổn định|không đổi)(?:\s+(?P<muc>\d{1,3}(?:\.\d{3})*)(?![.,]?\d|[.,]$)(?:\s*đồng/lít)?)?(?=\s+(?:so|như)(?:\s|$)|\s*[,;).])'
+    # muc tang/giam neu truoc gia: "xăng E5RON92 tăng 56 đồng/lít, giá bán không cao hơn ..."
+    - '^(?:(?!đồng).)*?\s(?P<chieu>tăng|giảm)(?:\s+(?:nhẹ|thêm|mạnh))?\s+(?P<muc>\d{1,3}(?:\.\d{3})*)\s*đồng'
+  nhan_tang: "tăng"
+  nhan_giam: "giảm"
+  ten_bang:                        # hai bang kiem chung ghi ra ket_qua/bang
+    cac_buoc: a1_cac_buoc_lam_sach.csv
+    mau_doi_chieu: a2_mau_doi_chieu.csv
+
+# Quy tac chuan hoa danh muc: xet tu tren xuong, quy tac khop dau tien duoc dung.
+# `mau` so voi nhan da dua ve chu thuong, Unicode NFC, gop khoang trang.
+# `nhan_chuan` la cach viet chuan; nhan viet khac duoc dem la "da chuan hoa".
+# Trong `mau` va `mau_don_vi` chi dung nhom khong bat (?:...).
+danh_muc:
+  - {ma: brent, ten: "Dầu thô Brent", thi_truong: the_gioi, nhom_hang: dau_tho, don_vi: usd_thung,
+     nguon: [eia], nhan_chuan: RBRTE, mau: '^rbrte$', mau_don_vi: '^\$/bbl$'}
+  - {ma: wti, ten: "Dầu thô WTI", thi_truong: the_gioi, nhom_hang: dau_tho, don_vi: usd_thung,
+     nguon: [eia], nhan_chuan: RWTC, mau: '^rwtc$', mau_don_vi: '^\$/bbl$'}
+  - {ma: xang_nyh, ten: "Xăng (cảng New York)", thi_truong: the_gioi, nhom_hang: xang, don_vi: usd_gallon,
+     nguon: [eia], nhan_chuan: EER_EPMRU_PF4_Y35NY_DPG, mau: '^eer_epmru_pf4_y35ny_dpg$', mau_don_vi: '^\$/gal$'}
+  - {ma: xang_gc, ten: "Xăng (Bờ Vịnh Mỹ)", thi_truong: the_gioi, nhom_hang: xang, don_vi: usd_gallon,
+     nguon: [eia], nhan_chuan: EER_EPMRU_PF4_RGC_DPG, mau: '^eer_epmru_pf4_rgc_dpg$', mau_don_vi: '^\$/gal$'}
+  - {ma: xang_la, ten: "Xăng RBOB (Los Angeles)", thi_truong: the_gioi, nhom_hang: xang, don_vi: usd_gallon,
+     nguon: [eia], nhan_chuan: EER_EPMRR_PF4_Y05LA_DPG, mau: '^eer_epmrr_pf4_y05la_dpg$', mau_don_vi: '^\$/gal$'}
+  - {ma: diesel_nyh, ten: "Diesel (cảng New York)", thi_truong: the_gioi, nhom_hang: diesel, don_vi: usd_gallon,
+     nguon: [eia], nhan_chuan: EER_EPD2DXL0_PF4_Y35NY_DPG, mau: '^eer_epd2dxl0_pf4_y35ny_dpg$', mau_don_vi: '^\$/gal$'}
+  - {ma: diesel_gc, ten: "Diesel (Bờ Vịnh Mỹ)", thi_truong: the_gioi, nhom_hang: diesel, don_vi: usd_gallon,
+     nguon: [eia], nhan_chuan: EER_EPD2DXL0_PF4_RGC_DPG, mau: '^eer_epd2dxl0_pf4_rgc_dpg$', mau_don_vi: '^\$/gal$'}
+  - {ma: diesel_la, ten: "Diesel CARB (Los Angeles)", thi_truong: the_gioi, nhom_hang: diesel, don_vi: usd_gallon,
+     nguon: [eia], nhan_chuan: EER_EPD2DC_PF4_Y05LA_DPG, mau: '^eer_epd2dc_pf4_y05la_dpg$', mau_don_vi: '^\$/gal$'}
+  - {ma: nl_bay_gc, ten: "Nhiên liệu bay (Bờ Vịnh Mỹ)", thi_truong: the_gioi, nhom_hang: dau_hoa, don_vi: usd_gallon,
+     nguon: [eia], nhan_chuan: EER_EPJK_PF4_RGC_DPG, mau: '^eer_epjk_pf4_rgc_dpg$', mau_don_vi: '^\$/gal$'}
+  - {ma: dau_dot_nyh, ten: "Dầu đốt số 2 (cảng New York)", thi_truong: the_gioi, nhom_hang: diesel, don_vi: usd_gallon,
+     nguon: [eia], nhan_chuan: EER_EPD2F_PF4_Y35NY_DPG, mau: '^eer_epd2f_pf4_y35ny_dpg$', mau_don_vi: '^\$/gal$'}
+  # Gia ban le: nhan co the kem tu dem ("có giá", "giá bán", "bán") va loi go trong ten diesel.
+  - {ma: vn_e5ron92, ten: "Xăng E5 RON92 (bán lẻ Việt Nam)", thi_truong: viet_nam, nhom_hang: xang, don_vi: vnd_lit,
+     nguon: [moit, bcp], nhan_chuan: "Xăng E5RON92", mau_don_vi: '^đồng/lít$',
+     mau: '^(?:giá )?xăng (?:sinh học )?e5 ?(?:ron ?92)?(?: ?- ?ii)?(?: (?:có )?(?:mức )?giá(?: bán)?| bán)?$'}
+  - {ma: vn_ron95, ten: "Xăng RON95-III (bán lẻ Việt Nam)", thi_truong: viet_nam, nhom_hang: xang, don_vi: vnd_lit,
+     nguon: [moit, bcp], nhan_chuan: "Xăng RON95-III", mau_don_vi: '^đồng/lít$',
+     mau: '^(?:giá )?xăng ron ?95(?: ?- ?iii)?(?: (?:có )?(?:mức )?giá(?: bán)?| bán)?$'}
+  - {ma: vn_e10ron95, ten: "Xăng E10 RON95-III (bán lẻ Việt Nam)", thi_truong: viet_nam, nhom_hang: xang, don_vi: vnd_lit,
+     nguon: [moit, bcp], nhan_chuan: "Xăng E10RON95-III", mau_don_vi: '^đồng/lít$',
+     mau: '^(?:giá )?xăng e10 ?ron ?95(?: ?- ?iii)?(?: (?:có )?(?:mức )?giá(?: bán)?| bán)?$'}
+  - {ma: vn_diesel, ten: "Dầu diesel 0.05S (bán lẻ Việt Nam)", thi_truong: viet_nam, nhom_hang: diesel, don_vi: vnd_lit,
+     nguon: [moit, bcp], nhan_chuan: "Dầu diesel 0.05S", mau_don_vi: '^đồng/lít$',
+     mau: '^(?:giá )?dầu (?:diesel|điêzen|diezel|diezen|dizel|diesal|diesl)(?: ?0[.,]0(?:5 ?s(?:-ii)?|55|3s))?(?: (?:có )?(?:mức )?giá(?: bán)?| bán)?$'}
+  - {ma: vn_dau_hoa, ten: "Dầu hỏa (bán lẻ Việt Nam)", thi_truong: viet_nam, nhom_hang: dau_hoa, don_vi: vnd_lit,
+     nguon: [moit, bcp], nhan_chuan: "Dầu hỏa", mau_don_vi: '^đồng/lít$',
+     mau: '^(?:giá )?dầu (?:hỏa|hoả)(?: ?2-k)?(?: (?:có )?(?:mức )?giá(?: bán)?| bán)?$'}
+  - {ma: sg_ron92, ten: "Xăng RON92 (Singapore, bình quân kỳ)", thi_truong: singapore, nhom_hang: xang, don_vi: usd_thung,
+     nguon: [moit, bcp], nhan_chuan: "xăng RON92 dùng để pha chế xăng E5RON92", mau: '^xăng ron ?92', mau_don_vi: '^usd/thùng$'}
+  - {ma: sg_ron95, ten: "Xăng RON95 (Singapore, bình quân kỳ)", thi_truong: singapore, nhom_hang: xang, don_vi: usd_thung,
+     nguon: [moit, bcp], nhan_chuan: "xăng RON95", mau: '^xăng ron ?95', mau_don_vi: '^usd/thùng$'}
+  - {ma: sg_diesel, ten: "Dầu diesel 0.05S (Singapore, bình quân kỳ)", thi_truong: singapore, nhom_hang: diesel, don_vi: usd_thung,
+     nguon: [moit, bcp], nhan_chuan: "dầu diesel 0.05S", mau: '^dầu (?:diesel|điêzen|diezel|diezen)', mau_don_vi: '^usd/thùng$'}
+  - {ma: sg_dau_hoa, ten: "Dầu hỏa (Singapore, bình quân kỳ)", thi_truong: singapore, nhom_hang: dau_hoa, don_vi: usd_thung,
+     nguon: [moit, bcp], nhan_chuan: "dầu hỏa", mau: '^dầu (?:hỏa|hoả)', mau_don_vi: '^usd/thùng$'}
+
+# Don vi chuan: gia mot thung = gia_goc * he_so_thung (theo dong tien `tien`).
+# khoang_hop_ly: so ngoai khoang nay bi coi la doc sai hoac nhap sai.
+don_vi:
+  usd_thung: {ten: "USD/thùng", tien: usd, he_so_thung: 1.0, khoang_hop_ly: [-50, 500]}
+  usd_gallon: {ten: "USD/gallon", tien: usd, he_so_thung: 42.0, khoang_hop_ly: [0.05, 12]}
+  vnd_lit: {ten: "đồng/lít", tien: vnd, he_so_thung: 158.987294928, khoang_hop_ly: [3000, 80000]}
+
+# Bang tra cuu ghep vao bang gia theo khoa `ngay`. Moi muc sinh mot cot.
+#   chuoi: chi lay mot ma chuoi; bo trong thi lay trung binh moi chuoi cua nguon theo ngay
+#   noi_suy: noi suy tuyen tinh theo thoi gian giua hai moc cong bo
+#   giu_cuoi_toi_da_ngay: sau moc cuoi, giu gia tri cuoi toi da bay nhieu ngay
+#   truoc_ngay_dau: gia tri gan cho ngay truoc moc dau cua nguon
+tra_cuu:
+  - {cot: ty_gia, nguon: ty_gia, chuoi: "Vietnam-Dong", noi_suy: true, giu_cuoi_toi_da_ngay: 120}
+  - {cot: gpr, nguon: gpr, chuoi: GPRD, giu_cuoi_toi_da_ngay: 7}
+  - {cot: phong_toa_tg, nguon: oxcgrt, truoc_ngay_dau: 0}
+  - {cot: phong_toa_vn, nguon: oxcgrt, chuoi: VNM, truoc_ngay_dau: 0}
+
+# Cac giai doan su kien (boi canh). Khong duoc chong lan nhau.
+# ket_thuc: null nghia la su kien con dien ra den het du lieu.
+su_kien:
+  nhan_binh_thuong: binh_thuong
+  ten_binh_thuong: "Bình thường"
+  danh_sach:
+    - ma: covid_2020
+      ten: "COVID-19: sụp đổ nhu cầu (30/1-30/6/2020)"
+      ten_ngan: "COVID-19 (2020)"
+      loai: dich_benh
+      bat_dau: 2020-01-30          # WHO tuyen bo tinh trang khan cap y te toan cau
+      ket_thuc: 2020-06-30
+      nguon: "https://www.who.int/news/item/29-06-2020-covidtimeline"
+    - ma: nga_ukraina_2022
+      ten: "Chiến sự Nga - Ukraine (24/2-31/8/2022)"
+      ten_ngan: "Nga - Ukraine (2022)"
+      loai: xung_dot
+      bat_dau: 2022-02-24          # Nga mo chien dich quan su tai Ukraine
+      ket_thuc: 2022-08-31
+      nguon: "https://digitallibrary.un.org/record/3965290"
+    - ma: israel_hamas_2023
+      ten: "Xung đột Israel - Hamas (7/10-31/12/2023)"
+      ten_ngan: "Israel - Hamas (2023)"
+      loai: xung_dot
+      bat_dau: 2023-10-07
+      ket_thuc: 2023-12-31
+      nguon: "https://press.un.org/en/2023/sgsm21981.doc.htm"
+    - ma: israel_iran_2025
+      ten: "Xung đột Israel - Iran 12 ngày (13-24/6/2025)"
+      ten_ngan: "Israel - Iran (2025)"
+      loai: xung_dot
+      bat_dau: 2025-06-13
+      ket_thuc: 2025-06-24
+      nguon: "https://www.eia.gov/todayinenergy/detail.php?id=65884"
+    - ma: iran_hormuz_2026
+      ten: "Chiến sự Iran - phong toả eo biển Hormuz (từ 28/2/2026)"
+      ten_ngan: "Iran - Hormuz (2026)"
+      loai: xung_dot
+      bat_dau: 2026-02-28
+      ket_thuc: null
+      nguon: "https://www.everycrsreport.com/reports/R48887.html"
+
+phan_tich:
+  bat_dau: 2018-01-01              # xang E5 RON92 thay RON92 tu 1/1/2018
+  ket_thuc: null                   # null: den ngay moi nhat trong du lieu
+  so_ngay_giao_dich_nam: 252       # dung de quy do bien dong ngay ve nam
+  so_phien_toi_thieu: 5            # it hon so phien nay thi khong tinh do bien dong
+  cot_tong_hop: [gia_vnd_lit, thay_doi_pct]
+  chuoi_the_gioi: brent            # chuoi dai dien cho gia the gioi
+  chuoi_bien_dong: [brent, wti, xang_nyh, diesel_nyh]
+  cua_so_trung_binh_ngay: 7        # binh quan truot gia the gioi khi so voi gia ban le
+  chuoi_ban_le: [vn_e5ron92, vn_ron95, vn_e10ron95, vn_diesel, vn_dau_hoa]
+  cap_ty_trong:                    # gia thanh pham Singapore so voi gia ban le cung mat hang
+    - {ban_le: vn_e5ron92, the_gioi: sg_ron92}
+    - {ban_le: vn_ron95, the_gioi: sg_ron95}
+    - {ban_le: vn_diesel, the_gioi: sg_diesel}
+    - {ban_le: vn_dau_hoa, the_gioi: sg_dau_hoa}
+  su_kien_chinh: [covid_2020, nga_ukraina_2022, iran_hormuz_2026]
+  mat_hang_chinh: [vn_e5ron92, vn_diesel]   # hai mat hang co mat trong moi ky dieu hanh 2018-2026
+  so_phien_toi_thieu_thang: 10     # thang co it phien hon thi khong tinh do bien dong thang
+  so_thang_toi_thieu_tuong_quan: 3 # it thang chung hon thi khong tinh he so tuong quan
+  ngay_dai_dien_thang: 15          # boi canh cua mot thang la boi canh cua ngay nay trong thang
+  nhom_tong_hop:                   # cac bang tong hop ghi ra ket_qua/bang
+    b6_tong_hop_theo_chuoi_va_nam.csv: [ma_chuoi, nam]
+    b7_tong_hop_theo_thi_truong_va_boi_canh.csv: [thi_truong, nhom_hang, su_kien]
+  so_dong_mau_doi_chieu: 40        # so cau gia lay ngau nhien (theo seed) de doi chieu tay
+
+bieu_do:
+  dpi: 300
+  kich_thuoc: [8.0, 4.5]           # inch
+  he_so_truc_tung: 1.45            # truc tung cao hon gia tri lon nhat bay nhieu lan, de cho ghi ten su kien
+  mau:                             # theo nhom hang va theo loai boi canh
+    dau_tho: "#1f4e79"
+    xang: "#c0504d"
+    diesel: "#e69f00"
+    dau_hoa: "#7f7f7f"
+    binh_thuong: "#9e9e9e"
+    dich_benh: "#2e7d32"
+    xung_dot: "#b71c1c"
+  mau_chuoi:                       # mau rieng cua mot so chuoi; chuoi khac lay mau cua nhom hang
+    wti: "#7fb0dc"
+    vn_ron95: "#7b2d26"
+    vn_e10ron95: "#e3a59f"
+  nhan_loai:                       # ten loai boi canh ghi tren chu giai
+    binh_thuong: "Bình thường"
+    dich_benh: "Dịch bệnh"
+    xung_dot: "Xung đột vũ trang"
+  so_thang_ghi_nhan: 6             # so thang bien dong nhat duoc ghi nhan tren bieu do phan tan
